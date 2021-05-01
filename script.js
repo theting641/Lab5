@@ -1,16 +1,127 @@
 // script.js
 
+
+var canvas = document.getElementById("user-image");
+var ctx = canvas.getContext("2d");
 const img = new Image(); // used to load image from <input> and draw to canvas
+
+var synth = window.speechSynthesis;
+var voices = [];
+var voiceSelect = document.getElementById('voice-selection');
+
+populateVoiceList();
+if (speechSynthesis.onvoiceschanged !== undefined) {
+  speechSynthesis.onvoiceschanged = populateVoiceList;
+}
+
+function populateVoiceList() {
+  voices = synth.getVoices();
+  for(var i = 0; i < voices.length ; i++) {
+    var option = document.createElement('option');
+    option.textContent = voices[i].name + ' (' + voices[i].lang + ')';
+
+    if(voices[i].default) {
+      option.textContent += ' -- DEFAULT';
+    }
+    option.setAttribute('data-lang', voices[i].lang);
+    option.setAttribute('data-name', voices[i].name);
+    voiceSelect.appendChild(option);
+
+    
+  }
+}
+
+var image = document.querySelector("input");
+image.addEventListener('change', (event) => {
+  var url = URL.createObjectURL(image.files[0]);
+  img.src = url;
+  img.alt = image.value.replace("C:\\fakepath\\", "")
+  //ctx.fillText(image.value, canvas.width/2, canvas.height/2);
+});
+
+
+function printText(event) {
+  ctx.fillStyle = "white";
+  ctx.textAlign = "center";
+  ctx.font = "40px Arial"
+  let top = document.getElementById('text-top');
+  let bot = document.getElementById('text-bottom');
+  ctx.fillText(top.value, canvas.width/2, 40);
+  ctx.fillText(bot.value, canvas.width/2, canvas.height - 10);
+  document.querySelector('button[type="submit"]').disabled = true;
+  document.querySelector('button[type="reset"]').disabled = false;
+  document.querySelector('button[type="button"]').disabled = false;
+  document.getElementById('voice-selection').disabled = false;
+  event.preventDefault();
+}
+var form = document.getElementById('generate-meme');
+form.addEventListener('submit', printText);
+
+const resetbutton = document.querySelector('button[type="reset"]');
+const readbutton = document.querySelector('button[type="button"]');
+
+resetbutton.addEventListener('click', event => {
+  document.querySelector('button[type="submit"]').disabled = false;
+  document.querySelector('button[type="reset"]').disabled = true;
+  document.querySelector('button[type="button"]').disabled = true;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+});
+
+readbutton.addEventListener('click', event => {
+  let top = document.getElementById('text-top').value;
+  let bot = document.getElementById('text-bottom').value;
+  let final = top + bot;
+
+  event.preventDefault();
+
+  var utterThis = new SpeechSynthesisUtterance(final);
+  var selectedOption = voiceSelect.selectedOptions[0].getAttribute('data-name');
+  for(var i = 0; i < voices.length ; i++) {
+    if(voices[i].name === selectedOption) {
+      utterThis.voice = voices[i];
+    }
+  }
+  // ctx.fillText(document.querySelector('input[type="range"]').value, canvas.width/2, canvas.height/2);
+  utterThis.volume = 1 * (document.querySelector('input[type="range"]').value)/100;
+  synth.speak(utterThis);
+
+}); 
+
+var slider = document.querySelector('input[type="range"]');
+var volume = document.querySelector('img');
+slider.addEventListener('input', updateValue);
+
+function updateValue(event) {
+  // ctx.fillText(volume.src, canvas.width/2, canvas.height/2);
+  if (slider.value >= 67) {
+    volume.src = "icons/volume-level-3.svg";
+  } else if (slider.value >= 34) {
+    volume.src = "icons/volume-level-2.svg";
+  } else if (slider.value >= 1) {
+    volume.src = "icons/volume-level-1.svg";
+  } else { 
+    volume.src = "icons/volume-level-0.svg";
+  }
+}
 
 // Fires whenever the img object loads a new image (such as with img.src =)
 img.addEventListener('load', () => {
   // TODO
 
+  
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  var list = getDimmensions(canvas.width, canvas.height, img.width, img.height);
+  ctx.drawImage(img, list['startX'], list['startY'], list['width'], list['height']);
+  ctx.globalCompositeOperation = 'source-over';
+  //ctx.fillText(img.alt, 10, 50);
   // Some helpful tips:
   // - Fill the whole Canvas with black first to add borders on non-square images, then draw on top
   // - Clear the form when a new image is selected
   // - If you draw the image to canvas here, it will update as soon as a new image is selected
 });
+
 
 /**
  * Takes in the dimensions of the canvas and the new image, then calculates the new
@@ -25,6 +136,7 @@ img.addEventListener('load', () => {
  */
 function getDimmensions(canvasWidth, canvasHeight, imageWidth, imageHeight) {
   let aspectRatio, height, width, startX, startY;
+  
 
   // Get the aspect ratio, used so the picture always fits inside the canvas
   aspectRatio = imageWidth / imageHeight;
